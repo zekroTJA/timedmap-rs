@@ -1,0 +1,23 @@
+[package]
+name = "timedmap"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ringo Hoffmann <contact@zekro.de>"]
+description = "A hash map with expiring key-value pairs."
+license = "MIT"
+documentation = "https://docs.rs/timedmap"
+readme = "README.md"
+repository = "https://github.com/zekrotja/timedmap-rs"
+
+[features]
+default = []
+
+[dependencies]
+actix-rt = { version = "2.8.0", optional = true }
+tokio = { version = "1.28.1", features = ["rt", "time"], optional = true }
+
+[dev-dependencies]
+actix-rt = "2.8.0"
+mock_instant = "0.3.0"
+tokio = { version = "1.28.1", features = ["test-util", "rt", "time", "macros"] }
+tokio-test = "0.4.2"

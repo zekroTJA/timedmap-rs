@@ -1,0 +1,26 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "*"
+    paths-ignore:
+      - "**.md"
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: actix-rt
+        run: cargo test --features actix-rt
+      - name: tokio
+        run: cargo test --features tokio
