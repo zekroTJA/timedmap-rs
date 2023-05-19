@@ -64,9 +64,9 @@ where
     /// the expiry has not yet exceeded.
     pub fn value_checked(&self) -> Option<V> {
         if self.is_expired() {
-            Some(self.value())
-        } else {
             None
+        } else {
+            Some(self.value())
         }
     }
 
@@ -74,9 +74,33 @@ where
     /// the expiry has not yet exceeded.
     pub fn value_ref_checked(&self) -> Option<&V> {
         if self.is_expired() {
-            Some(self.value_ref())
-        } else {
             None
+        } else {
+            Some(self.value_ref())
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use mock_instant::{Instant, MockClock};
+
+    #[test]
+    fn expiry() {
+        let v: Value<_, Instant> = Value::new("foo", Duration::from_millis(100));
+        assert_eq!(v.expires(), &(Instant::now() + Duration::from_millis(100)));
+        assert!(!v.is_expired());
+        assert_eq!(v.value_checked(), Some("foo"));
+
+        MockClock::advance(Duration::from_millis(100));
+
+        assert!(!v.is_expired());
+        assert_eq!(v.value_checked(), Some("foo"));
+
+        MockClock::advance(Duration::from_millis(1));
+
+        assert!(v.is_expired());
+        assert_eq!(v.value_checked(), None);
     }
 }

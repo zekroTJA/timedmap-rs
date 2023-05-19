@@ -223,12 +223,32 @@ mod tests {
 
         tm.insert("a", "b", Duration::from_millis(10));
 
+        let v = tm.get(&"x");
+        assert_eq!(v, None);
+        assert!(!tm.contains(&"x"));
+
         MockClock::advance(Duration::from_millis(5));
         let v = tm.get(&"a");
         assert_eq!(v, Some("b"));
+        assert!(tm.contains(&"a"));
 
         MockClock::advance(Duration::from_millis(6));
         let v = tm.get(&"a");
+        assert_eq!(v, None);
+        assert!(!tm.contains(&"a"));
+    }
+
+    #[test]
+    fn remove() {
+        let tm: TimedMap<_, _, Instant> = TimedMap::new_with_timesource();
+        tm.insert("a", 1, Duration::from_millis(100));
+        tm.insert("b", 2, Duration::from_millis(100));
+
+        let v = tm.remove(&"a");
+        assert_eq!(v, Some(1));
+        assert!(!tm.contains(&"a"));
+
+        let v = tm.remove(&"a");
         assert_eq!(v, None);
     }
 
