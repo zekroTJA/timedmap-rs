@@ -1,4 +1,4 @@
-# timedmap
+# timedmap [![Crates.io](https://img.shields.io/crates/v/timedmap)](https://crates.io/crates/timedmap) [![docs.rs](https://img.shields.io/docsrs/timedmap)](https://docs.rs/timedmap)
 
 A *more or less* port of my package [timedmap](https://github.com/zekrotja/timedmap) - originally written in Go - but for Rust!
 
