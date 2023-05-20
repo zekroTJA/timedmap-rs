@@ -31,25 +31,25 @@ assert_eq!(tm.get(&"baz"), Some(3));
 
 # Cleanup Example
 
-You can use the [`Cleanup`] trait to automatically clean up
+You can use the `start_cleaner` function to automatically clean up
 expired key-value pairs in given time intervals using popular
 async runtimes.
 
 > Currently, only implementations for `tokio` and `actix-rt`
-are available. Implentations for other popular runtimes are
-planned in the future. If you want to contribute an implementation,
-feel free to create a
-[pull request](https://github.com/zekroTJA/timedmap-rs). 😄
+> are available. Implentations for other popular runtimes are
+> planned in the future. If you want to contribute an implementation,
+> feel free to create a
+> [pull request](https://github.com/zekroTJA/timedmap-rs). 😄
 
 ```rust
-use timedmap::{TimedMap, Cleanup};
+use timedmap::{TimedMap, start_cleaner};
 use std::time::Duration;
 use std::sync::Arc;
 
 let tm = Arc::new(TimedMap::new());
 tm.insert("foo", 1, Duration::from_secs(60));
 
-let cancel = Cleanup::start_cycle(tm, Duration::from_secs(10));
+let cancel = start_cleaner(tm, Duration::from_secs(10));
 
 cancel();
 ```

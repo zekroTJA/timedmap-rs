@@ -27,7 +27,7 @@
 //!
 //! # Cleanup Example
 //!
-//! You can use the [`Cleanup`] trait to automatically clean up
+//! You can use the `start_cleaner` function to automatically clean up
 //! expired key-value pairs in given time intervals using popular
 //! async runtimes.
 //!
