@@ -38,7 +38,7 @@
 //! [pull request](https://github.com/zekroTJA/timedmap-rs). 😄
 //!
 //! ```
-//! use timedmap::{TimedMap, Cleanup};
+//! use timedmap::{TimedMap, start_cleaner};
 //! use std::time::Duration;
 //! use std::sync::Arc;
 //!
@@ -47,7 +47,7 @@
 //!
 //! # #[cfg(feature = "tokio")]
 //! # tokio_test::block_on(async {
-//! let cancel = Cleanup::start_cycle(tm, Duration::from_secs(10));
+//! let cancel = start_cleaner(tm, Duration::from_secs(10));
 //!
 //! cancel();
 //! # });

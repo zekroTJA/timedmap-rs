@@ -1,4 +1,4 @@
-use crate::{time::TimeSource, Value};
+use crate::{time::TimeSource, Cleanup, Value};
 use std::{
     collections::HashMap,
     hash::Hash,
@@ -158,36 +158,6 @@ where
         m.clear();
     }
 
-    /// Cleanup removes all key-value pairs from the map
-    /// which have been expired.
-    pub fn cleanup(&self) {
-        let mut keys = vec![];
-        {
-            let m = self.inner.read().unwrap();
-            keys.extend(
-                m.iter()
-                    .filter(|(_, val)| val.is_expired())
-                    .map(|(key, _)| key)
-                    .cloned(),
-            );
-        }
-
-        if keys.is_empty() {
-            return;
-        }
-
-        let mut m = self.inner.write().unwrap();
-        for key in keys {
-            m.remove(&key);
-        }
-
-        // TODO: Maybe shrink the map down if it exceeds a predefined
-        // capacity, like
-        // if m.capacity() > SOME_CAP_VAL {
-        //     m.shrink_to_fit();
-        // }
-    }
-
     /// Create a snapshot of the current state of the maps
     /// key-value entries.
     ///
@@ -227,6 +197,41 @@ where
     }
 }
 
+impl<K, V, TS> Cleanup for TimedMap<K, V, TS>
+where
+    K: Eq + PartialEq + Hash + Clone + Send + Sync,
+    V: Clone + Send + Sync,
+    TS: TimeSource + Send + Sync,
+{
+    fn cleanup(&self) {
+        let mut keys = vec![];
+        {
+            let m = self.inner.read().unwrap();
+            keys.extend(
+                m.iter()
+                    .filter(|(_, val)| val.is_expired())
+                    .map(|(key, _)| key)
+                    .cloned(),
+            );
+        }
+
+        if keys.is_empty() {
+            return;
+        }
+
+        let mut m = self.inner.write().unwrap();
+        for key in keys {
+            m.remove(&key);
+        }
+
+        // TODO: Maybe shrink the map down if it exceeds a predefined
+        // capacity, like
+        // if m.capacity() > SOME_CAP_VAL {
+        //     m.shrink_to_fit();
+        // }
+    }
+}
+
 impl<K, V> Default for TimedMap<K, V> {
     fn default() -> Self {
         Self {
@@ -238,6 +243,7 @@ impl<K, V> Default for TimedMap<K, V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cleanup::Cleanup;
     use mock_instant::{Instant, MockClock};
 
     #[test]
