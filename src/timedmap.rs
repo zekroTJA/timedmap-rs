@@ -121,6 +121,23 @@ where
         true
     }
 
+    /// Extends the lifetime of the value coresponding to the
+    /// given key to the new lifetime from now.
+    ///
+    /// Returns `true` if a non-expired value exists for the
+    /// given key.
+    pub fn extend(&self, key: &K, added_lifetime: Duration) -> bool {
+        let Some(mut v) = self.get_value(key) else {
+            return false;
+        };
+
+        let mut m = self.inner.write().unwrap();
+        v.add_expiry(added_lifetime);
+        m.insert(key.clone(), v);
+
+        true
+    }
+
     /// Returns the number of key-value pairs in the map
     /// which have not been expired.
     pub fn len(&self) -> usize {
@@ -133,6 +150,12 @@ where
     pub fn is_empty(&self) -> bool {
         let m = self.inner.read().unwrap();
         m.len() == 0
+    }
+
+    /// Clears the map, removing all key-value pairs.
+    pub fn clear(&self) {
+        let mut m = self.inner.write().unwrap();
+        m.clear();
     }
 
     /// Cleanup removes all key-value pairs from the map
@@ -220,8 +243,12 @@ mod tests {
     #[test]
     fn get_checked() {
         let tm: TimedMap<_, _, Instant> = TimedMap::new_with_timesource();
+        assert_eq!(tm.len(), 0);
+        assert!(tm.is_empty());
 
         tm.insert("a", "b", Duration::from_millis(10));
+        assert_eq!(tm.len(), 1);
+        assert!(!tm.is_empty());
 
         let v = tm.get(&"x");
         assert_eq!(v, None);
@@ -231,11 +258,15 @@ mod tests {
         let v = tm.get(&"a");
         assert_eq!(v, Some("b"));
         assert!(tm.contains(&"a"));
+        assert_eq!(tm.len(), 1);
+        assert!(!tm.is_empty());
 
         MockClock::advance(Duration::from_millis(6));
         let v = tm.get(&"a");
         assert_eq!(v, None);
         assert!(!tm.contains(&"a"));
+        assert_eq!(tm.len(), 0);
+        assert!(tm.is_empty());
     }
 
     #[test]
@@ -243,13 +274,91 @@ mod tests {
         let tm: TimedMap<_, _, Instant> = TimedMap::new_with_timesource();
         tm.insert("a", 1, Duration::from_millis(100));
         tm.insert("b", 2, Duration::from_millis(100));
+        assert_eq!(tm.len(), 2);
+        assert!(!tm.is_empty());
 
         let v = tm.remove(&"a");
         assert_eq!(v, Some(1));
         assert!(!tm.contains(&"a"));
+        assert_eq!(tm.get(&"b"), Some(2));
+        assert!(tm.contains(&"b"));
+        assert_eq!(tm.len(), 1);
+        assert!(!tm.is_empty());
 
         let v = tm.remove(&"a");
         assert_eq!(v, None);
+        assert!(!tm.contains(&"a"));
+        assert_eq!(tm.get(&"b"), Some(2));
+        assert!(tm.contains(&"b"));
+        assert_eq!(tm.len(), 1);
+        assert!(!tm.is_empty());
+
+        MockClock::advance(Duration::from_millis(120));
+        let v = tm.remove(&"b");
+        assert_eq!(v, None);
+        assert!(!tm.contains(&"b"));
+        assert_eq!(tm.len(), 0);
+        assert!(tm.is_empty());
+    }
+
+    #[test]
+    fn refresh() {
+        let tm: TimedMap<_, _, Instant> = TimedMap::new_with_timesource();
+        tm.insert("a", 1, Duration::from_millis(100));
+        tm.insert("b", 2, Duration::from_millis(100));
+        assert_eq!(tm.len(), 2);
+        assert!(!tm.is_empty());
+
+        MockClock::advance(Duration::from_millis(60));
+        assert_eq!(tm.get(&"a"), Some(1));
+        assert_eq!(tm.get(&"b"), Some(2));
+        assert_eq!(tm.len(), 2);
+        assert!(!tm.is_empty());
+
+        assert!(tm.refresh(&"b", Duration::from_millis(60)));
+        assert!(!tm.refresh(&"c", Duration::from_millis(60)));
+
+        MockClock::advance(Duration::from_millis(50));
+        assert_eq!(tm.get(&"a"), None);
+        assert_eq!(tm.get(&"b"), Some(2));
+        assert_eq!(tm.len(), 1);
+        assert!(!tm.is_empty());
+
+        MockClock::advance(Duration::from_millis(50));
+        assert_eq!(tm.get(&"a"), None);
+        assert_eq!(tm.get(&"b"), None);
+        assert_eq!(tm.len(), 0);
+        assert!(tm.is_empty());
+    }
+
+    #[test]
+    fn extend() {
+        let tm: TimedMap<_, _, Instant> = TimedMap::new_with_timesource();
+        tm.insert("a", 1, Duration::from_millis(100));
+        tm.insert("b", 2, Duration::from_millis(100));
+        assert_eq!(tm.len(), 2);
+        assert!(!tm.is_empty());
+
+        MockClock::advance(Duration::from_millis(60));
+        assert_eq!(tm.get(&"a"), Some(1));
+        assert_eq!(tm.get(&"b"), Some(2));
+        assert_eq!(tm.len(), 2);
+        assert!(!tm.is_empty());
+
+        assert!(tm.extend(&"b", Duration::from_millis(10)));
+        assert!(!tm.extend(&"c", Duration::from_millis(10)));
+
+        MockClock::advance(Duration::from_millis(50));
+        assert_eq!(tm.get(&"a"), None);
+        assert_eq!(tm.get(&"b"), Some(2));
+        assert_eq!(tm.len(), 1);
+        assert!(!tm.is_empty());
+
+        MockClock::advance(Duration::from_millis(50));
+        assert_eq!(tm.get(&"a"), None);
+        assert_eq!(tm.get(&"b"), None);
+        assert_eq!(tm.len(), 0);
+        assert!(tm.is_empty());
     }
 
     #[test]
@@ -259,28 +368,57 @@ mod tests {
         tm.insert("a", 1, Duration::from_millis(5));
         tm.insert("b", 2, Duration::from_millis(10));
         tm.insert("c", 3, Duration::from_millis(15));
+        assert_eq!(tm.len(), 3);
+        assert!(!tm.is_empty());
 
         tm.cleanup();
         assert!(tm.contains(&"a"));
         assert!(tm.contains(&"b"));
         assert!(tm.contains(&"c"));
+        assert_eq!(tm.len(), 3);
+        assert!(!tm.is_empty());
 
         MockClock::advance(Duration::from_millis(6));
         tm.cleanup();
         assert!(!tm.contains(&"a"));
         assert!(tm.contains(&"b"));
         assert!(tm.contains(&"c"));
+        assert_eq!(tm.len(), 2);
+        assert!(!tm.is_empty());
 
         MockClock::advance(Duration::from_millis(5));
         tm.cleanup();
         assert!(!tm.contains(&"a"));
         assert!(!tm.contains(&"b"));
         assert!(tm.contains(&"c"));
+        assert_eq!(tm.len(), 1);
+        assert!(!tm.is_empty());
 
         MockClock::advance(Duration::from_millis(5));
         tm.cleanup();
         assert!(!tm.contains(&"a"));
         assert!(!tm.contains(&"b"));
         assert!(!tm.contains(&"c"));
+        assert_eq!(tm.len(), 0);
+        assert!(tm.is_empty());
+    }
+
+    #[test]
+    fn clear() {
+        let tm: TimedMap<_, _, Instant> = TimedMap::new_with_timesource();
+
+        tm.insert("a", 1, Duration::from_millis(5));
+        tm.insert("b", 2, Duration::from_millis(10));
+        tm.insert("c", 3, Duration::from_millis(15));
+        assert_eq!(tm.len(), 3);
+        assert!(!tm.is_empty());
+
+        tm.clear();
+
+        assert!(!tm.contains(&"a"));
+        assert!(!tm.contains(&"b"));
+        assert!(!tm.contains(&"c"));
+        assert_eq!(tm.len(), 0);
+        assert!(tm.is_empty());
     }
 }
