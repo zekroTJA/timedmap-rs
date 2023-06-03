@@ -204,12 +204,14 @@ where
     TS: TimeSource + Send + Sync,
 {
     fn cleanup(&self) {
+        let now = TS::now();
+
         let mut keys = vec![];
         {
             let m = self.inner.read().unwrap();
             keys.extend(
                 m.iter()
-                    .filter(|(_, val)| val.is_expired())
+                    .filter(|(_, val)| val.is_expired_at(&now))
                     .map(|(key, _)| key)
                     .cloned(),
             );

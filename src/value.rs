@@ -29,7 +29,13 @@ where
     /// Returns `true` when the specified expiry is
     /// after the current time.
     pub fn is_expired(&self) -> bool {
-        TS::now() > self.expires
+        self.is_expired_at(&TS::now())
+    }
+
+    /// Returns `true` when the specified expiry is
+    /// after the given time `at`.
+    pub fn is_expired_at(&self, at: &TS) -> bool {
+        at > &self.expires
     }
 
     /// Returns a reference to the values expiry
